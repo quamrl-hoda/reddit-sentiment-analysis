@@ -1,0 +1,88 @@
+schema: '2.0'
+stages:
+  data_ingestion:
+    cmd: python src/data/data_ingestion.py
+    deps:
+    - path: src/data/data_ingestion.py
+      hash: md5
+      md5: ede598095d129ffacaaa563a95c02015
+      size: 4723
+    params:
+      params.yaml:
+        data_ingestion.test_size: 0.25
+    outs:
+    - path: artifacts/data
+      hash: md5
+      md5: 49d68ac9e22c6088d4afd89da38f5c38.dir
+      size: 6919701
+      nfiles: 2
+  data_preprocessing:
+    cmd: python src/data/data_preprocessing.py
+    deps:
+    - path: artifacts/data/test.csv
+      hash: md5
+      md5: 2e81d6eb492d93987768f731e904781c
+      size: 1680931
+    - path: artifacts/data/train.csv
+      hash: md5
+      md5: 18b3faba324bc010ea34ff2d9244645f
+      size: 5238770
+    - path: src/data/data_preprocessing.py
+      hash: md5
+      md5: 061672adec4138c4cabb17fb90ec7a5e
+      size: 7455
+    outs:
+    - path: artifacts/interim
+      hash: md5
+      md5: ce6dc9941817a72d0789181ebb460ed3.dir
+      size: 5035766
+      nfiles: 2
+  model_building:
+    cmd: python src/model/model_building.py
+    deps:
+    - path: artifacts/interim/train_processed.csv
+      hash: md5
+      md5: 8027c5dd0abc59cf95a2d1f0635fe5cd
+      size: 3810895
+    - path: src/model/model_building.py
+      hash: md5
+      md5: 77dc2519dc7e231719127dedeb107a24
+      size: 5467
+    params:
+      params.yaml:
+        model_building.learning_rate: 0.08
+        model_building.max_depth: 20
+        model_building.max_features: 10000
+        model_building.n_estimators: 350
+        model_building.ngram_range:
+        - 1
+        - 3
+    outs:
+    - path: artifacts/models
+      hash: md5
+      md5: 2d15507797829f407914408d85099330.dir
+      size: 4348439
+      nfiles: 2
+  model_evaluation:
+    cmd: python src/model/model_evaluation.py
+    deps:
+    - path: artifacts/interim/test_processed.csv
+      hash: md5
+      md5: 30fdd1f3dae3e974956384d37fd6e34c
+      size: 1224871
+    - path: artifacts/interim/train_processed.csv
+      hash: md5
+      md5: 8027c5dd0abc59cf95a2d1f0635fe5cd
+      size: 3810895
+    - path: artifacts/models/lgbm_model.pkl
+      hash: md5
+      md5: bc439e9fcdd23b57d1a6dd786da0ee22
+      size: 4004021
+    - path: artifacts/models/tfidf_vectorizer.pkl
+      hash: md5
+      md5: 0423181e6b9c4606851474f1f5bd777c
+      size: 344418
+    - path: src/model/model_evaluation.py
+      hash: md5
+      md5: d789e4ea5699b649a745c7a0442af8c4
+      size: 12102
