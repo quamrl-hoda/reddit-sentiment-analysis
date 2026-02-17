@@ -1,4 +1,4 @@
-name: CI/CD Pipeline - DagsHub
+name: CICD Pipeline - DagsHub
 
 on: push
 
@@ -7,25 +7,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ----------------------------------------------------
-      # 1. Checkout code
-      # ----------------------------------------------------
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      # ----------------------------------------------------
-      # 2. Setup Python
-      # ----------------------------------------------------
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
-      # ----------------------------------------------------
-      # 3. Cache pip
-      # ----------------------------------------------------
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
@@ -34,34 +23,31 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # ----------------------------------------------------
-      # 4. Install dependencies
-      # ----------------------------------------------------
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
           pip install -r requirements.txt
-          pip install dvc dagshub mlflow pytest
+          pip install dagshub dvc
 
-      # ----------------------------------------------------
-      # 5. Configure DVC + DagsHub
-      # ----------------------------------------------------
-      - name: Configure DVC remote (DagsHub)
+      - name: Configure DagsHub credentials
         env:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
+          # Configure DagsHub authentication
+          git config --global user.name "${{ secrets.DAGSHUB_USERNAME }}"
+          git config --global user.email "${{ secrets.DAGSHUB_USERNAME }}@users.noreply.github.com"
+          
+          # Set up DagsHub remote for DVC
           dvc remote remove dagshub || true
           dvc remote add -d dagshub https://dagshub.com/quamrl-hoda/reddit-sentiment-analysis.dvc
           dvc remote modify dagshub --local auth basic
-          dvc remote modify dagshub --local user $DAGSHUB_USERNAME
-          dvc remote modify dagshub --local password $DAGSHUB_TOKEN
+          dvc remote modify dagshub --local user ${{ secrets.DAGSHUB_USERNAME }}
+          dvc remote modify dagshub --local password ${{ secrets.DAGSHUB_TOKEN }}
 
-      # ----------------------------------------------------
-      # 6. Run DVC pipeline
-      # ----------------------------------------------------
-      - name: Run DVC pipeline
+      - name: Run pipeline
         env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
           MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
           MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
