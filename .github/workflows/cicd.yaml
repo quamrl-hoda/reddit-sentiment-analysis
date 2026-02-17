@@ -38,7 +38,7 @@ jobs:
           git config --global user.email "${{ secrets.DAGSHUB_USERNAME }}@users.noreply.github.com"
           
           # Set up DagsHub remote for DVC
-          dvc remote default modifymy dagshub
+          dvc remote default dagshub
           dvc remote modify dagshub url https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.dvc
           dvc remote modify dagshub user ${{ secrets.DAGSHUB_USERNAME }}
           dvc remote modify dagshub password ${{ secrets.DAGSHUB_TOKEN }}

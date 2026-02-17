@@ -1,4 +1,4 @@
-﻿aiobotocore
+aiobotocore
 aiohappyeyeballs==2.3.4
 aiohttp==3.10.0
 aiohttp-retry==2.8.3
@@ -177,3 +177,4 @@ wrapt==1.16.0
 yarl==1.9.4
 zc.lockfile==3.0.post1
 zipp==3.19.2
+pytest
