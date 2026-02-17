@@ -84,7 +84,7 @@ jobs:
         run: |
           python -c "
           import os
-          import urllib.parse
+          import base64
           import subprocess
           
           try:
@@ -93,21 +93,26 @@ jobs:
               branch = os.environ['GITHUB_REF_NAME']
               repo_name = 'reddit-sentiment-analysis'
               
+              if not username or not token:
+                  print('❌ Error: DAGSHUB_USERNAME or DAGSHUB_TOKEN is empty')
+                  exit(1)
+                  
               print(f'Configuring git remote for {username}...')
               
-              # URL encode credentials
-              encoded_user = urllib.parse.quote(username, safe='')
-              encoded_token = urllib.parse.quote(token, safe='')
+              # Create Basic Auth Header
+              auth_str = f'{username}:{token}'
+              b64_auth = base64.b64encode(auth_str.encode()).decode()
               
-              # Construct authenticated URL
-              auth_url = f'https://{encoded_user}:{encoded_token}@dagshub.com/{username}/{repo_name}.git'
+              # Configure git to use the header for dagshub.com
+              subprocess.check_call(['git', 'config', '--global', f'http.https://dagshub.com/.extraheader', f'AUTHORIZATION: Basic {b64_auth}'])
               
-              # Remove existing remote (ignore error if it doesn't exist)
+              # Remove existing remote
               subprocess.run(['git', 'remote', 'remove', 'dagshub'], stderr=subprocess.DEVNULL)
               
-              # Add new remote
-              print('Adding DagsHub remote...')
-              subprocess.check_call(['git', 'remote', 'add', 'dagshub', auth_url])
+              # Add remote (clean URL without credentials)
+              remote_url = f'https://dagshub.com/{username}/{repo_name}.git'
+              print(f'Adding remote: {remote_url}')
+              subprocess.check_call(['git', 'remote', 'add', 'dagshub', remote_url])
               
               # Push
               print(f'Pushing to DagsHub (branch: {branch})...')
