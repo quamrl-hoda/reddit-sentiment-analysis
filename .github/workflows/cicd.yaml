@@ -78,6 +78,9 @@ jobs:
       - name: Push changes to DagsHub
         if: ${{ github.actor != 'github-actions[bot]' }}
         env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
           # Configure git credentials using Python to handle special characters
           python -c "
           import os
@@ -95,6 +98,7 @@ jobs:
           
           # Write to .git-credentials
           import pathlib
+          import os
           pathlib.Path(os.path.expanduser('~/.git-credentials')).write_text(cred_entry + '\n')
           "
           
