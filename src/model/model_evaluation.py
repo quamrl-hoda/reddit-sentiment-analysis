@@ -7,7 +7,13 @@ import mlflow
 import mlflow.sklearn
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.feature_extraction.text import TfidfVectorizer
+import sys
 import os
+
+# Add the project root directory to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import json
