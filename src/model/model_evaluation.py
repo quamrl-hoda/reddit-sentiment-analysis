@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import json
 from mlflow.models import infer_signature
-from dagshub_config import setup_dagshub, set_experiment
+# from src.dagshub_config import setup_dagshub, set_experiment
 
 # logging configuration
 logger = logging.getLogger('model_evaluation')
