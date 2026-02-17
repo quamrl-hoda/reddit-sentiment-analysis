@@ -203,8 +203,8 @@ def main():
                     mlflow.log_param(key, value)
             
             # Load model and vectorizer - FIXED: Use correct paths
-            model_path = os.path.join('models', 'lgbm_model.pkl')
-            vectorizer_path = os.path.join('models', 'tfidf_vectorizer.pkl')
+            model_path = os.path.join('artifacts', 'models', 'lgbm_model.pkl')
+            vectorizer_path = os.path.join('artifacts', 'models', 'tfidf_vectorizer.pkl')
             
             logger.debug(f"Looking for model at: {model_path}")
             logger.debug(f"Looking for vectorizer at: {vectorizer_path}")
