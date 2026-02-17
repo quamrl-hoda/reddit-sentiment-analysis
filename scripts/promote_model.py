@@ -1,11 +1,13 @@
 import os
+import sys
 import mlflow
 from mlflow.tracking import MlflowClient
 import dagshub
-from src.dagshub_config import setup_dagshub,set_experiment
 
 # Add the project root directory to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from src.dagshub_config import setup_dagshub, set_experiment
 # -------------------------------
 # 1. Authenticate with DagsHub
 # -------------------------------
