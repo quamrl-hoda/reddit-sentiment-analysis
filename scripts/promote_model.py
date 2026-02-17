@@ -12,10 +12,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 dagshub.auth.add_app_token(
     token=os.environ.get("MLFLOW_TRACKING_PASSWORD")
 )
-
-# -------------------------------
-# 2. Set MLflow tracking URI
-# -------------------------------
 setup_dagshub()
 set_experiment()
 
