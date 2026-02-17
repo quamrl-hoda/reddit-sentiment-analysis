@@ -76,8 +76,8 @@ jobs:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          git config --global http.postBuffer 524288000
-          git remote remove dagshub || true
+          # git config --global http.postBuffer 524288000
+          # git remote remove dagshub || true
           git remote add dagshub https://${DAGSHUB_USERNAME}:${DAGSHUB_TOKEN}@dagshub.com/quamrl-hoda/reddit-sentiment-analysis.git
           git push --set-upstream dagshub HEAD:main
 
