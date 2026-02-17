@@ -20,7 +20,6 @@ client = MlflowClient()
 
 MODEL_NAME = "reddit_sentiment_lgbm"   # must EXACTLY match registered model name
 
-# -------------------------------
 # 3. Get latest model version
 # -------------------------------
 versions = client.search_model_versions(f"name='{MODEL_NAME}'")
