@@ -82,11 +82,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          # Add DagsHub remote
+          # Add DagsHub remote (clean up first)
+          git remote remove dagshub || true
           git remote add dagshub https://${{ secrets.DAGSHUB_USERNAME }}:${{ secrets.DAGSHUB_TOKEN }}@dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.git
           
           # Push to DagsHub
-          git push dagshub ${{ github.ref_name }}
+          git push dagshub HEAD:${{ github.ref_name }} --force
 
       - name: Install test dependencies
         run: |
