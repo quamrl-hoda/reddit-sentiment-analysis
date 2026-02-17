@@ -4,7 +4,6 @@ import pickle
 import pandas as pd
 import lightgbm as lgb
 import numpy as np
-from data.data_ingestion import load_data, load_params
 from sklearn.feature_extraction.text import TfidfVectorizer
 # Logging configuration
 logger = logging.getLogger('data_preprocessing')
