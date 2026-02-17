@@ -1,5 +1,6 @@
 import logging
 import os
+import yaml
 import pickle
 import pandas as pd
 import lightgbm as lgb
@@ -100,7 +101,7 @@ def save_model(model, file_path: str) -> None:
     except Exception as e:
         logger.error('Failed to save the model: %s', e)
         raise
-    
+
 def load_params(params_path: str = "params.yaml") -> dict:
     """Load parameters from a YAML file."""
     try:
