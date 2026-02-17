@@ -178,3 +178,4 @@ yarl==1.9.4
 zc.lockfile==3.0.post1
 zipp==3.19.2
 pytest
+python-dotenv
