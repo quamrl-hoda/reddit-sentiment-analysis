@@ -88,9 +88,9 @@ jobs:
           import subprocess
           
           try:
-              username = os.environ['DAGSHUB_USERNAME']
-              token = os.environ['DAGSHUB_TOKEN']
-              branch = os.environ['GITHUB_REF_NAME']
+              username = os.environ['DAGSHUB_USERNAME'].strip()
+              token = os.environ['DAGSHUB_TOKEN'].strip()
+              branch = os.environ['GITHUB_REF_NAME'].strip()
               repo_name = 'reddit-sentiment-analysis'
               
               if not username or not token:
@@ -98,6 +98,11 @@ jobs:
                   exit(1)
                   
               print(f'Configuring git remote for {username}...')
+              
+              # Sanitize git configuration
+              subprocess.check_call(['git', 'config', '--global', '--unset-all', 'credential.helper'], stderr=subprocess.DEVNULL)
+              subprocess.check_call(['git', 'config', '--global', 'credential.helper', ''])
+              subprocess.check_call(['git', 'config', '--global', 'http.postBuffer', '524288000'])
               
               # Create Basic Auth Header
               auth_str = f'{username}:{token}'
