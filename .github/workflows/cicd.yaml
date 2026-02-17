@@ -1,4 +1,4 @@
-name: CICD Pipeline - DagsHub
+name: CI/CD Pipeline - DagsHub
 
 on: push
 
@@ -7,14 +7,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      # ----------------------------------------------------
+      # 1. Checkout code
+      # ----------------------------------------------------
+      - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
         with:
-          python-version: '3.10'
+          fetch-depth: 0
 
+      # ----------------------------------------------------
+      # 2. Setup Python
+      # ----------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      # ----------------------------------------------------
+      # 3. Cache pip
+      # ----------------------------------------------------
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
@@ -23,123 +34,74 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      # ----------------------------------------------------
+      # 4. Install dependencies
+      # ----------------------------------------------------
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install -r requirements.txt
-          pip install dagshub dvc
+          pip install dvc dagshub mlflow pytest
 
-      - name: Configure DagsHub credentials
+      # ----------------------------------------------------
+      # 5. Configure DVC + DagsHub
+      # ----------------------------------------------------
+      - name: Configure DVC remote (DagsHub)
         env:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          # Configure DagsHub authentication
-          git config --global user.name "${{ secrets.DAGSHUB_USERNAME }}"
-          git config --global user.email "${{ secrets.DAGSHUB_USERNAME }}@users.noreply.github.com"
-          
-          # Set up DagsHub remote for DVC
           dvc remote remove dagshub || true
           dvc remote add -d dagshub https://dagshub.com/quamrl-hoda/reddit-sentiment-analysis.dvc
           dvc remote modify dagshub --local auth basic
-          dvc remote modify dagshub --local user ${{ secrets.DAGSHUB_USERNAME }}
-          dvc remote modify dagshub --local password ${{ secrets.DAGSHUB_TOKEN }}
+          dvc remote modify dagshub --local user $DAGSHUB_USERNAME
+          dvc remote modify dagshub --local password $DAGSHUB_TOKEN
 
-      - name: Run pipeline
+      # ----------------------------------------------------
+      # 6. Run DVC pipeline
+      # ----------------------------------------------------
+      - name: Run DVC pipeline
         env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
           MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
           MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           dvc repro
 
-      - name: Push DVC-tracked data to DagsHub
-        env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+      # ----------------------------------------------------
+      # 7. Push DVC data
+      # ----------------------------------------------------
+      - name: Push DVC data to DagsHub
         run: |
           dvc push
 
-      - name: Configure Git for DagsHub
+      # ----------------------------------------------------
+      # 8. Commit DVC metadata
+      # ----------------------------------------------------
+      - name: Commit DVC outputs
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Add changes to Git
-        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
+          git commit -m "Automated DVC pipeline update" || echo "No changes to commit"
 
-      - name: Commit changes
-        if: ${{ github.actor != 'github-actions[bot]' }}
-        run: |
-          git commit -m "Automated commit of DVC outputs and updated code" || echo "No changes to commit"
-
-      - name: Push changes to DagsHub
-        if: ${{ github.actor != 'github-actions[bot]' }}
+      # ----------------------------------------------------
+      # 9. Push code to DagsHub (SAFE & SIMPLE)
+      # ----------------------------------------------------
+      - name: Push to DagsHub repository
         env:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
-          python -c "
-          import os
-          import base64
-          import subprocess
-          
-          try:
-              username = os.environ['DAGSHUB_USERNAME'].strip()
-              token = os.environ['DAGSHUB_TOKEN'].strip()
-              branch = os.environ['GITHUB_REF_NAME'].strip()
-              repo_name = 'reddit-sentiment-analysis'
-              
-              if not username or not token:
-                  print('❌ Error: DAGSHUB_USERNAME or DAGSHUB_TOKEN is empty')
-                  exit(1)
-                  
-              print(f'Configuring git remote for {username}...')
-              
-              # Sanitize git configuration (ignore errors if keys don't exist)
-              subprocess.run(['git', 'config', '--global', '--unset-all', 'credential.helper'], stderr=subprocess.DEVNULL)
-              subprocess.run(['git', 'config', '--global', 'credential.helper', ''])
-              subprocess.run(['git', 'config', '--global', 'http.postBuffer', '524288000'])
-              
-              # Create Basic Auth Header
-              auth_str = f'{username}:{token}'
-              b64_auth = base64.b64encode(auth_str.encode()).decode()
-              
-              # Configure git to use the header for dagshub.com
-              subprocess.check_call(['git', 'config', '--global', f'http.https://dagshub.com/.extraheader', f'AUTHORIZATION: Basic {b64_auth}'])
-              
-              # Remove existing remote
-              subprocess.run(['git', 'remote', 'remove', 'dagshub'], stderr=subprocess.DEVNULL)
-              
-              # Add remote (clean URL without credentials)
-              remote_url = f'https://dagshub.com/{username}/{repo_name}.git'
-              print(f'Adding remote: {remote_url}')
-              subprocess.check_call(['git', 'remote', 'add', 'dagshub', remote_url])
-              
-              # Push
-              print(f'Pushing to DagsHub (branch: {branch})...')
-              subprocess.check_call(['git', 'push', 'dagshub', f'HEAD:{branch}', '--force'])
-              print('✅ Push successful!')
-              
-          except subprocess.CalledProcessError as e:
-              print(f'❌ Git command failed with exit code {e.returncode}')
-              exit(1)
-          except Exception as e:
-              print(f'❌ An error occurred: {e}')
-              exit(1)
-          "
+          git remote remove dagshub || true
+          git remote add dagshub https://${DAGSHUB_USERNAME}:${DAGSHUB_TOKEN}@dagshub.com/quamrl-hoda/reddit-sentiment-analysis.git
+          git push dagshub HEAD:${{ github.ref_name }}
 
-      - name: Install test dependencies
-        run: |
-          pip install pytest
-
+      # ----------------------------------------------------
+      # 10. Run tests
+      # ----------------------------------------------------
       - name: Run model loading test
         env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
           MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
           MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
@@ -147,21 +109,9 @@ jobs:
           pytest scripts/test_load_model.py
 
       - name: Run model signature test
-        env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           pytest scripts/test_model_signature.py
 
       - name: Run model performance test
-        env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           dvc repro
