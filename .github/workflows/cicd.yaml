@@ -99,10 +99,10 @@ jobs:
                   
               print(f'Configuring git remote for {username}...')
               
-              # Sanitize git configuration
-              subprocess.check_call(['git', 'config', '--global', '--unset-all', 'credential.helper'], stderr=subprocess.DEVNULL)
-              subprocess.check_call(['git', 'config', '--global', 'credential.helper', ''])
-              subprocess.check_call(['git', 'config', '--global', 'http.postBuffer', '524288000'])
+              # Sanitize git configuration (ignore errors if keys don't exist)
+              subprocess.run(['git', 'config', '--global', '--unset-all', 'credential.helper'], stderr=subprocess.DEVNULL)
+              subprocess.run(['git', 'config', '--global', 'credential.helper', ''])
+              subprocess.run(['git', 'config', '--global', 'http.postBuffer', '524288000'])
               
               # Create Basic Auth Header
               auth_str = f'{username}:{token}'
