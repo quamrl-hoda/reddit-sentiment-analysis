@@ -22,17 +22,19 @@ def setup_dagshub():
     os.environ['MLFLOW_TRACKING_PASSWORD'] = DAGSHUB_TOKEN
     
     try:
-        # Initialize DagsHub
-        dagshub.init(repo_owner=DAGSHUB_USERNAME, repo_name=REPO_NAME, mlflow=True)
+        # Construct the tracking URI
+        tracking_uri = f'https://dagshub.com/{DAGSHUB_USERNAME}/{REPO_NAME}.mlflow'
         
-        # Set MLflow tracking URI
-        mlflow.set_tracking_uri(f'https://dagshub.com/{DAGSHUB_USERNAME}/{REPO_NAME}.mlflow')
+        # Set MLflow tracking URI explicitly
+        mlflow.set_tracking_uri(tracking_uri)
         
-        print(f"✅ DagsHub initialized for {DAGSHUB_USERNAME}/{REPO_NAME}")
+        print(f"✅ DagsHub/MLflow initialized for {DAGSHUB_USERNAME}/{REPO_NAME}")
+        print(f"🔗 Tracking URI: {tracking_uri}")
+        
         return mlflow
         
     except Exception as e:
-        print(f"❌ Failed to initialize DagsHub: {e}")
+        print(f"❌ Failed to initialize DagsHub/MLflow: {e}")
         print("Continuing without MLflow tracking...")
         return None
 
