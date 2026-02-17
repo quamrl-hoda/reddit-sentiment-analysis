@@ -39,7 +39,7 @@ jobs:
           
           # Set up DagsHub remote for DVC
           dvc remote remove dagshub || true
-          dvc remote add -d dagshub https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.dvc
+          dvc remote add -d dagshub https://dagshub.com/quamrl-hoda/reddit-sentiment-analysis.dvc
           dvc remote modify dagshub --local auth basic
           dvc remote modify dagshub --local user ${{ secrets.DAGSHUB_USERNAME }}
           dvc remote modify dagshub --local password ${{ secrets.DAGSHUB_TOKEN }}
