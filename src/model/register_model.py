@@ -8,7 +8,12 @@ import mlflow.sklearn
 import pandas as pd
 import joblib
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from dagshub_config import setup_dagshub, set_experiment
+import sys
+
+# Add the project root directory to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+from src.dagshub_config import setup_dagshub, set_experiment
 
 # logging configuration
 logger = logging.getLogger('model_registration')
@@ -61,7 +66,9 @@ def load_test_data():
     """Load test data for model validation."""
     try:
         # Try multiple possible paths
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         possible_paths = [
+            os.path.join(root_dir, 'artifacts', 'interim', 'test_processed.csv'),
             'artifacts/data/interim/test_processed.csv',
             'artifacts/interim/test_processed.csv',
             'data/processed/test_processed.csv'
@@ -138,8 +145,8 @@ def register_model_in_mlflow():
         test_data = load_test_data()
         
         # Load model and vectorizer for validation
-        model = load_model('models/lgbm_model.pkl')
-        vectorizer = load_vectorizer('models/tfidf_vectorizer.pkl')
+        model = load_model(os.path.join('artifacts', 'models', 'lgbm_model.pkl'))
+        vectorizer = load_vectorizer(os.path.join('artifacts', 'models', 'tfidf_vectorizer.pkl'))
         
         # Transform test data
         X_test = vectorizer.transform(test_data['clean_comment'].values)
@@ -194,7 +201,7 @@ def main():
         logger.info("🚀 Starting model registration process...")
         
         # Check if model files exist
-        if not os.path.exists('models/lgbm_model.pkl'):
+        if not os.path.exists(os.path.join('artifacts', 'models', 'lgbm_model.pkl')):
             logger.error("Model file not found. Run model_building first.")
             return
         
