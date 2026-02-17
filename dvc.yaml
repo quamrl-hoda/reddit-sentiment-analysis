@@ -40,11 +40,16 @@ stages:
       - artifacts/models/tfidf_vectorizer.pkl
       - artifacts/interim/test_processed.csv
       - artifacts/interim/train_processed.csv
-    outs:
-      - experiment_info.json
+
+
   model_registration:
     cmd: python src/model/register_model.py
     deps:
       - src/model/register_model.py
+      - artifacts/models/lgbm_model.pkl
+      - artifacts/models/tfidf_vectorizer.pkl
       - experiment_info.json
+      - artifacts/interim/test_processed.csv
+    outs:
+      - model_registration_info.json
       

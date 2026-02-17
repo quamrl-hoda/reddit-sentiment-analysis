@@ -1,15 +1,14 @@
-# register model
+# src/model/register_model.py
 
-import json
-import mlflow
-import logging
 import os
-
-from setup import REPO_NAME
-
- # Set the MLflow tracking URI
-mlflow.set_tracking_uri(f"https://dagshub.com/quamrul-hoda/reddit-sentiment-analysis.mlflow")
-
+import json
+import logging
+import mlflow
+import mlflow.sklearn
+import pandas as pd
+import joblib
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from dagshub_config import setup_dagshub, set_experiment
 
 # logging configuration
 logger = logging.getLogger('model_registration')
@@ -28,51 +27,195 @@ file_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 logger.addHandler(file_handler)
 
-def load_model_info(file_path: str) -> dict:
-    """Load the model info from a JSON file."""
+
+def load_model(model_path):
+    """Load the trained model."""
     try:
-        with open(file_path, 'r') as file:
-            model_info = json.load(file)
-        logger.debug('Model info loaded from %s', file_path)
-        return model_info
-    except FileNotFoundError:
-        logger.error('File not found: %s', file_path)
-        raise
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model not found at {model_path}")
+        
+        with open(model_path, 'rb') as f:
+            model = joblib.load(f)
+        logger.debug(f"✅ Model loaded from {model_path}")
+        return model
     except Exception as e:
-        logger.error('Unexpected error occurred while loading the model info: %s', e)
+        logger.error(f"❌ Error loading model: {e}")
         raise
 
-def register_model(model_name: str, model_info: dict):
-    """Register the model to the MLflow Model Registry."""
+
+def load_vectorizer(vectorizer_path):
+    """Load the trained vectorizer."""
     try:
-        model_uri = f"runs:/{model_info['run_id']}/{model_info['model_path']}"
+        if not os.path.exists(vectorizer_path):
+            raise FileNotFoundError(f"Vectorizer not found at {vectorizer_path}")
+        
+        vectorizer = joblib.load(vectorizer_path)
+        logger.debug(f"✅ Vectorizer loaded from {vectorizer_path}")
+        return vectorizer
+    except Exception as e:
+        logger.error(f"❌ Error loading vectorizer: {e}")
+        raise
+
+
+def load_test_data():
+    """Load test data for model validation."""
+    try:
+        # Try multiple possible paths
+        possible_paths = [
+            'artifacts/data/interim/test_processed.csv',
+            'artifacts/interim/test_processed.csv',
+            'data/processed/test_processed.csv'
+        ]
+        
+        test_data = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                test_data = pd.read_csv(path)
+                test_data.fillna('', inplace=True)
+                logger.debug(f"✅ Test data loaded from {path}")
+                break
+        
+        if test_data is None:
+            raise FileNotFoundError("Could not find test data in any expected location")
+        
+        return test_data
+    except Exception as e:
+        logger.error(f"❌ Error loading test data: {e}")
+        raise
+
+
+def register_model_in_mlflow():
+    """Register the model in MLflow model registry."""
+    try:
+        # Initialize DAGsHub and MLflow
+        mlflow = setup_dagshub()
+        set_experiment('dvc-pipeline-runs')
+        
+        # Load experiment info to get the run ID
+        if not os.path.exists('experiment_info.json'):
+            logger.error("experiment_info.json not found. Run model_evaluation first.")
+            return False
+        
+        with open('experiment_info.json', 'r') as f:
+            experiment_info = json.load(f)
+        
+        run_id = experiment_info.get('run_id')
+        if not run_id:
+            logger.error("No run_id found in experiment_info.json")
+            return False
+        
+        logger.debug(f"Found run_id: {run_id}")
+        
+        # Get the run
+        client = mlflow.tracking.MlflowClient()
+        run = client.get_run(run_id)
+        
+        # Get the model URI
+        model_uri = f"runs:/{run_id}/lgbm_model"
         
         # Register the model
-        model_version = mlflow.register_model(model_uri, model_name)
+        model_name = "reddit_sentiment_lgbm"
+        result = mlflow.register_model(model_uri, model_name)
         
-        # Transition the model to "Staging" stage
-        client = mlflow.tracking.MlflowClient()
+        logger.info(f"✅ Model registered as: {model_name} (version {result.version})")
+        
+        # Transition to staging (optional)
         client.transition_model_version_stage(
             name=model_name,
-            version=model_version.version,
+            version=result.version,
             stage="Staging"
         )
+        logger.debug(f"Model moved to Staging stage")
         
-        logger.debug(f'Model {model_name} version {model_version.version} registered and transitioned to Staging.')
+        # Add a description
+        client.update_model_version(
+            name=model_name,
+            version=result.version,
+            description=f"LightGBM model for Reddit sentiment analysis. Run ID: {run_id}"
+        )
+        
+        # Load test data for model validation
+        test_data = load_test_data()
+        
+        # Load model and vectorizer for validation
+        model = load_model('models/lgbm_model.pkl')
+        vectorizer = load_vectorizer('models/tfidf_vectorizer.pkl')
+        
+        # Transform test data
+        X_test = vectorizer.transform(test_data['clean_comment'].values)
+        y_test = test_data['category'].values
+        
+        # Make predictions
+        y_pred = model.predict(X_test)
+        
+        # Calculate metrics
+        metrics = {
+            "accuracy": accuracy_score(y_test, y_pred),
+            "precision": precision_score(y_test, y_pred, average='weighted'),
+            "recall": recall_score(y_test, y_pred, average='weighted'),
+            "f1": f1_score(y_test, y_pred, average='weighted')
+        }
+        
+        logger.info("\n📊 Model Validation Metrics:")
+        logger.info(f"   Accuracy: {metrics['accuracy']:.4f}")
+        logger.info(f"   Precision: {metrics['precision']:.4f}")
+        logger.info(f"   Recall: {metrics['recall']:.4f}")
+        logger.info(f"   F1 Score: {metrics['f1']:.4f}")
+        
+        # Log metrics to the registered model version
+        for metric_name, metric_value in metrics.items():
+            client.log_metric(run_id, f"registered_{metric_name}", metric_value)
+        
+        # Save registration info
+        registration_info = {
+            "model_name": model_name,
+            "model_version": result.version,
+            "run_id": run_id,
+            "stage": "Staging",
+            "metrics": metrics,
+            "timestamp": pd.Timestamp.now().isoformat()
+        }
+        
+        with open('model_registration_info.json', 'w') as f:
+            json.dump(registration_info, f, indent=4)
+        
+        logger.debug(f"Registration info saved to model_registration_info.json")
+        
+        return True
+        
     except Exception as e:
-        logger.error('Error during model registration: %s', e)
-        raise
+        logger.error(f"❌ Failed to register model: {e}")
+        return False
+
 
 def main():
+    """Main function to register the model."""
     try:
-        model_info_path = 'experiment_info.json'
-        model_info = load_model_info(model_info_path)
+        logger.info("🚀 Starting model registration process...")
         
-        model_name = "reddit_chrome_plugin_model"
-        register_model(model_name, model_info)
+        # Check if model files exist
+        if not os.path.exists('models/lgbm_model.pkl'):
+            logger.error("Model file not found. Run model_building first.")
+            return
+        
+        if not os.path.exists('experiment_info.json'):
+            logger.error("experiment_info.json not found. Run model_evaluation first.")
+            return
+        
+        # Register the model
+        success = register_model_in_mlflow()
+        
+        if success:
+            logger.info("✅ Model registration completed successfully!")
+            logger.info("📝 Model registered in MLflow Model Registry")
+            logger.info("🔗 View at: https://dagshub.com/quamrl-hoda/reddit-sentiment-analysis.mlflow")
+        else:
+            logger.error("❌ Model registration failed")
+            
     except Exception as e:
-        logger.error('Failed to complete the model registration process: %s', e)
-        print(f"Error: {e}")
+        logger.error(f"❌ Error in main: {e}")
+        raise
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
