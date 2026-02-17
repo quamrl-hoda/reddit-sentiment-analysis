@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import dagshub
 import mlflow
+import pandas as pd
 
 def setup_dagshub():
     """Initialize DagsHub and MLflow tracking."""
