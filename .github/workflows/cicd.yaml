@@ -1,4 +1,4 @@
-name: CICD Pipeline - DagsHub
+name: CICD Pipeline
 
 on: push
 
@@ -26,78 +26,76 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install dagshub dvc
-
-      - name: Configure DagsHub credentials
-        env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-        run: |
-          # Configure DagsHub authentication
-          git config --global user.name "${{ secrets.DAGSHUB_USERNAME }}"
-          git config --global user.email "${{ secrets.DAGSHUB_USERNAME }}@users.noreply.github.com"
-          
-          # Set up DagsHub remote for DVC
-          dvc remote remove dagshub || true
-          dvc remote add -d dagshub https://dagshub.com/quamrl-hoda/reddit-sentiment-analysis.dvc
-          dvc remote modify dagshub --local auth basic
-          dvc remote modify dagshub --local user ${{ secrets.DAGSHUB_USERNAME }}
-          dvc remote modify dagshub --local password ${{ secrets.DAGSHUB_TOKEN }}
 
       - name: Run pipeline
         env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+          DAGSHUB_USERNAME : ${{ secrets.DAGSHUB_USERNAME  }}
+          DAGSHUB_TOKEN : ${{ secrets.DAGSHUB_TOKEN  }}
+          AWS_DEFAULT_REGION: us-east-1  # Replace with your AWS region
         run: |
           dvc repro
 
-      # ----------------------------------------------------
-      # 7. Push DVC data
-      # ----------------------------------------------------
-      - name: Push DVC data to DagsHub
+      - name: Push DVC-tracked data to remote
+        env:
+          DAGSHUB_USERNAME : ${{ secrets.DAGSHUB_USERNAME  }}
+          DAGSHUB_TOKEN : ${{ secrets.DAGSHUB_TOKEN  }}
+          AWS_DEFAULT_REGION: us-east-1  # Replace with your AWS region
         run: |
           dvc push
 
-      # ----------------------------------------------------
-      # 8. Commit DVC metadata
-      # ----------------------------------------------------
-      - name: Commit DVC outputs
+      - name: Configure Git
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add changes to Git
+        run: |
           git add .
-          git commit -m "Automated DVC pipeline update" || echo "No changes to commit"
 
-      - name: Push to DagsHub repository
-        env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+      - name: Commit changes
+        if: ${{ github.actor != 'github-actions[bot]' }}
         run: |
-          # git config --global http.postBuffer 524288000
-          # git remote remove dagshub || true
-          git remote add dagshub https://${DAGSHUB_USERNAME}:${DAGSHUB_TOKEN}@dagshub.com/quamrl-hoda/reddit-sentiment-analysis.git
-          git push --set-upstream dagshub HEAD:main
+          git commit -m "Automated commit of DVC outputs and updated code" || echo "No changes to commit"
 
+      - name: Push changes
+        if: ${{ github.actor != 'github-actions[bot]' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push origin ${{ github.ref_name }}
 
+      - name: Install test dependencies
+        run: |
+          pip install pytest
 
-      # ----------------------------------------------------
-      # 10. Run tests
-      # ----------------------------------------------------
       - name: Run model loading test
         env:
-          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+          DAGSHUB_USERNAME : ${{ secrets.DAGSHUB_USERNAME  }}
+          DAGSHUB_TOKEN : ${{ secrets.DAGSHUB_TOKEN  }}
+          AWS_DEFAULT_REGION: us-east-1
         run: |
           pytest scripts/test_load_model.py
 
       - name: Run model signature test
+        env:
+          DAGSHUB_USERNAME : ${{ secrets.DAGSHUB_USERNAME  }}
+          DAGSHUB_TOKEN : ${{ secrets.DAGSHUB_TOKEN  }}
+          AWS_DEFAULT_REGION: us-east-1
         run: |
           pytest scripts/test_model_signature.py
 
       - name: Run model performance test
+        env:
+          DAGSHUB_USERNAME : ${{ secrets.DAGSHUB_USERNAME  }}
+          DAGSHUB_TOKEN : ${{ secrets.DAGSHUB_TOKEN  }}
+          AWS_DEFAULT_REGION: us-east-1
         run: |
-          dvc repro
+          pytest scripts/test_model_performance.py
+
+      - name: Promote model to production
+        if: success()
+        env:
+          DAGSHUB_USERNAME : ${{ secrets.DAGSHUB_USERNAME  }}
+          DAGSHUB_TOKEN : ${{ secrets.DAGSHUB_TOKEN  }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: python scripts/promote_model.py
