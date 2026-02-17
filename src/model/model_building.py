@@ -100,6 +100,22 @@ def save_model(model, file_path: str) -> None:
     except Exception as e:
         logger.error('Failed to save the model: %s', e)
         raise
+    
+def load_params(params_path: str = "params.yaml") -> dict:
+    """Load parameters from a YAML file."""
+    try:
+        # If you want to always look in project root, you could do:
+        import os
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        full_path = os.path.join(root_dir, params_path)
+        
+        with open(full_path, 'r') as file:
+            params = yaml.safe_load(file)
+        logger.debug('Parameters retrieved from %s', full_path)
+        return params
+    except FileNotFoundError:
+        logger.error('File not found: %s', full_path)
+        raise
 
 def main():
    try:
