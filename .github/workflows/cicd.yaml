@@ -78,12 +78,27 @@ jobs:
       - name: Push changes to DagsHub
         if: ${{ github.actor != 'github-actions[bot]' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-        run: |
-          # Configure git credential helper
+          # Configure git credentials using Python to handle special characters
+          python -c "
+          import os
+          import urllib.parse
+          
+          username = os.environ['DAGSHUB_USERNAME']
+          token = os.environ['DAGSHUB_TOKEN']
+          
+          # URL encode the credentials
+          encoded_user = urllib.parse.quote(username, safe='')
+          encoded_token = urllib.parse.quote(token, safe='')
+          
+          # Create credential entry
+          cred_entry = f'https://{encoded_user}:{encoded_token}@dagshub.com'
+          
+          # Write to .git-credentials
+          import pathlib
+          pathlib.Path(os.path.expanduser('~/.git-credentials')).write_text(cred_entry + '\n')
+          "
+          
           git config --global credential.helper store
-          echo "https://${{ secrets.DAGSHUB_USERNAME }}:${{ secrets.DAGSHUB_TOKEN }}@dagshub.com" > ~/.git-credentials
           
           # Add DagsHub remote
           git remote remove dagshub || true
