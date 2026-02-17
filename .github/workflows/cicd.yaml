@@ -1,0 +1,121 @@
+name: CICD Pipeline - DagsHub
+
+on: push
+
+jobs:
+  model-deployment:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install dagshub dvc
+
+      - name: Configure DagsHub credentials
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          # Configure DagsHub authentication
+          git config --global user.name "${{ secrets.DAGSHUB_USERNAME }}"
+          git config --global user.email "${{ secrets.DAGSHUB_USERNAME }}@users.noreply.github.com"
+          
+          # Set up DagsHub remote for DVC
+          dvc remote default modifymy dagshub
+          dvc remote modify dagshub url https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.dvc
+          dvc remote modify dagshub user ${{ secrets.DAGSHUB_USERNAME }}
+          dvc remote modify dagshub password ${{ secrets.DAGSHUB_TOKEN }}
+
+      - name: Run pipeline
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          dvc repro
+
+      - name: Push DVC-tracked data to DagsHub
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          dvc push
+
+      - name: Configure Git for DagsHub
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add changes to Git
+        run: |
+          git add .
+
+      - name: Commit changes
+        if: ${{ github.actor != 'github-actions[bot]' }}
+        run: |
+          git commit -m "Automated commit of DVC outputs and updated code" || echo "No changes to commit"
+
+      - name: Push changes to DagsHub
+        if: ${{ github.actor != 'github-actions[bot]' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          # Add DagsHub remote
+          git remote add dagshub https://${{ secrets.DAGSHUB_USERNAME }}:${{ secrets.DAGSHUB_TOKEN }}@dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.git
+          
+          # Push to DagsHub
+          git push dagshub ${{ github.ref_name }}
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest
+
+      - name: Run model loading test
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          pytest scripts/test_load_model.py
+
+      - name: Run model signature test
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          pytest scripts/test_model_signature.py
+
+      - name: Run model performance test
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          dvc repro
