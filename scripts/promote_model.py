@@ -12,7 +12,7 @@ from src.dagshub_config import setup_dagshub, set_experiment
 # 1. Authenticate with DagsHub
 # -------------------------------
 dagshub.auth.add_app_token(
-    token=os.environ.get("MLFLOW_TRACKING_PASSWORD")
+    token=os.environ.get("DAGSHUB_TOKEN")
 )
 setup_dagshub()
 set_experiment()
