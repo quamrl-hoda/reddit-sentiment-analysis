@@ -1,3 +1,4 @@
+
 name: CICD Pipeline
 
 on:
@@ -39,7 +40,6 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
       # --------------------------------------------------
       # 4. Install dependencies
       # --------------------------------------------------
@@ -48,7 +48,6 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install dvc dagshub mlflow pytest
-
       # --------------------------------------------------
       # 5. Configure DVC remote (DagsHub)
       # --------------------------------------------------
@@ -62,7 +61,6 @@ jobs:
           dvc remote modify dagshub --local auth basic
           dvc remote modify dagshub --local user $DAGSHUB_USERNAME
           dvc remote modify dagshub --local password $DAGSHUB_TOKEN
-
       # --------------------------------------------------
       # 6. Run DVC pipeline
       # --------------------------------------------------
@@ -73,52 +71,3 @@ jobs:
           AWS_DEFAULT_REGION: us-east-1  # Replace with your AWS region
         run: |
           dvc repro
-
-      # --------------------------------------------------
-      # 7. Push DVC data to DagsHub
-      # --------------------------------------------------
-      - name: Push DVC-tracked data to DagsHub
-        run: |
-          dvc push
-
-      # --------------------------------------------------
-      # 8. Commit DVC metadata to GitHub
-      # --------------------------------------------------
-      - name: Commit and push changes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Update DVC artifacts" || echo "No changes to commit"
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
-
-      # --------------------------------------------------
-      # 9. Tests
-      # --------------------------------------------------
-      - name: Run model loading test
-        env:
-          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/reddit-sentiment-analysis.mlflow
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
-        run: |
-          pytest scripts/test_load_model.py
-
-      - name: Run model signature test
-        run: |
-          pytest scripts/test_model_signature.py
-
-      - name: Run model performance test
-        run: |
-          pytest scripts/test_model_performance.py
-
-      # --------------------------------------------------
-      # 10. Promote model
-      - name: Promote model to production
-        if: success()
-        env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-        run: |
-          python scripts/promote_model.py
