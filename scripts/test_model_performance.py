@@ -4,64 +4,77 @@ import pandas as pd
 import joblib
 from sklearn.metrics import accuracy_score, f1_score
 import pytest
+from dotenv import load_dotenv
+from mlflow.tracking import MlflowClient
+import mlflow
+import pickle
 
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+load_dotenv()
+ # Set MLflow environment variables
+DAGSHUB_USERNAME = os.getenv("DAGSHUB_USERNAME", "").strip()
+DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN", "").strip()
+REPO_NAME = os.getenv("REPO_NAME", "reddit-sentiment-analysis")
 
-def test_model_performance():
-    # Define paths
-    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    model_path = os.path.join(root_dir, "artifacts", "models", "lgbm_model.pkl")
-    vectorizer_path = os.path.join(root_dir, "artifacts", "models", "tfidf_vectorizer.pkl")
-    
-    # Data paths to check
-    possible_data_paths = [
-        os.path.join(root_dir, "artifacts", "interim", "test_processed.csv"),
-        os.path.join(root_dir, "artifacts", "data", "interim", "test_processed.csv")
-    ]
-    
-    test_data_path = None
-    for path in possible_data_paths:
-        if os.path.exists(path):
-            test_data_path = path
-            break
-            
-    # Assertions for file existence
-    assert os.path.exists(model_path), f"Model not found at {model_path}"
-    assert os.path.exists(vectorizer_path), f"Vectorizer not found at {vectorizer_path}"
-    assert test_data_path is not None, "Test data not found in any expected location"
-    
-    print(f"Loading model form: {model_path}")
-    print(f"Loading data from: {test_data_path}")
+os.environ["MLFLOW_TRACKING_USERNAME"] = DAGSHUB_USERNAME
+os.environ["MLFLOW_TRACKING_PASSWORD"] = DAGSHUB_TOKEN
 
-    # Load resources
-    model = joblib.load(model_path)
-    vectorizer = joblib.load(vectorizer_path)
-    
-    df = pd.read_csv(test_data_path)
-    df.fillna('', inplace=True)
-    
-    # Check if required columns exist
-    assert 'clean_comment' in df.columns, "Column 'clean_comment' missing from test data"
-    assert 'category' in df.columns, "Column 'category' missing from test data"
+tracking_uri = f"https://dagshub.com/{DAGSHUB_USERNAME}/{REPO_NAME}.mlflow"
+mlflow.set_tracking_uri(tracking_uri)
 
-    # Prepare data
-    X_test = vectorizer.transform(df['clean_comment'])
-    y_test = df['category']
-    
-    # Predict
-    y_pred = model.predict(X_test)
-    
-    # Calculate metrics
-    acc = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred, average='weighted')
-    
-    print(f"Test Accuracy: {acc:.4f}")
-    print(f"Test F1 Score: {f1:.4f}")
-    
-    # Performance thresholds (Adjust based on requirements)
-    # Using 0.0 as baseline to ensure pipeline runs, increase as needed
-    assert acc > 0.0, f"Accuracy {acc} is too low" 
-    
-if __name__ == "__main__":
-    test_model_performance()
+@pytest.mark.parametrize("model_name, stage, holdout_data_path, vectorizer_path", [
+    ("reddit_sentiment_lgbm", "staging", "artifacts/interim/test_processed.csv", "artifacts/models/tfidf_vectorizer.pkl"),  # Replace with your actual paths
+])
+def test_model_performance(model_name, stage, holdout_data_path, vectorizer_path):
+    try:
+        # Load the model from MLflow
+        client = mlflow.tracking.MlflowClient()
+        latest_version_info = client.get_latest_versions(model_name, stages=[stage])
+        latest_version = latest_version_info[0].version if latest_version_info else None
+
+        assert latest_version is not None, f"No model found in the '{stage}' stage for '{model_name}'"
+
+        model_uri = f"models:/{model_name}/{latest_version}"
+        model = mlflow.pyfunc.load_model(model_uri)
+
+        # Load the vectorizer
+        with open(vectorizer_path, 'rb') as file:
+            vectorizer = pickle.load(file)
+
+        # Load the holdout test data
+        holdout_data = pd.read_csv(holdout_data_path)
+        X_holdout_raw = holdout_data.iloc[:, :-1].squeeze()  # Raw text features (assuming text is in the first column)
+        y_holdout = holdout_data.iloc[:, -1]  # Labels
+
+        # Handle NaN values in the text data
+        X_holdout_raw = X_holdout_raw.fillna("")
+
+        # Apply TF-IDF transformation
+        X_holdout_tfidf = vectorizer.transform(X_holdout_raw)
+        X_holdout_tfidf_df = pd.DataFrame(X_holdout_tfidf.toarray(), columns=vectorizer.get_feature_names_out())
+
+        # Predict using the model
+        y_pred_new = model.predict(X_holdout_tfidf_df)
+
+        # Calculate performance metrics
+        accuracy_new = accuracy_score(y_holdout, y_pred_new)
+        precision_new = precision_score(y_holdout, y_pred_new, average='weighted', zero_division=1)
+        recall_new = recall_score(y_holdout, y_pred_new, average='weighted', zero_division=1)
+        f1_new = f1_score(y_holdout, y_pred_new, average='weighted', zero_division=1)
+
+
+        # Define expected thresholds for the performance metrics
+        expected_accuracy = 0.40
+        expected_precision = 0.40
+        expected_recall = 0.40
+        expected_f1 = 0.40
+
+        # Assert that the new model meets the performance thresholds
+        assert accuracy_new >= expected_accuracy, f'Accuracy should be at least {expected_accuracy}, got {accuracy_new}'
+        assert precision_new >= expected_precision, f'Precision should be at least {expected_precision}, got {precision_new}'
+        assert recall_new >= expected_recall, f'Recall should be at least {expected_recall}, got {recall_new}'
+        assert f1_new >= expected_f1, f'F1 score should be at least {expected_f1}, got {f1_new}'
+
+        print(f"Performance test passed for model '{model_name}' version {latest_version}")
+
+    except Exception as e:
+        pytest.fail(f"Model performance test failed with error: {e}")

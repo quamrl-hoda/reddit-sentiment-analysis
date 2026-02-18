@@ -111,13 +111,12 @@ jobs:
         run: |
           pytest scripts/test_model_signature.py
 
-      # - name: Run model performance test
-      #   env:
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     AWS_DEFAULT_REGION: us-east-1
-      #   run: |
-      #     pytest scripts/test_model_performance.py
+      - name: Run model performance test
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          pytest scripts/test_model_performance.py
 
       # - name: Promote model to production
       #   if: success()

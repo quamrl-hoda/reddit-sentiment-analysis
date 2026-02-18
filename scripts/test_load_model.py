@@ -7,8 +7,8 @@ import pytest
 
 load_dotenv()
  # Set MLflow environment variables
-DAGSHUB_USERNAME = os.getenv("DAGSHUB_USERNAME")
-DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
+DAGSHUB_USERNAME = os.getenv("DAGSHUB_USERNAME", "").strip()
+DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN", "").strip()
 REPO_NAME = os.getenv("REPO_NAME", "reddit-sentiment-analysis")
 
 os.environ["MLFLOW_TRACKING_USERNAME"] = DAGSHUB_USERNAME
