@@ -9,7 +9,7 @@ def test_predict_endpoint():
         "comments": ["This is a great product!", "Not worth the money.", "It's okay."]
     }
     response = requests.post(f"{BASE_URL}/predict", json=data)
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Request failed with status {response.status_code}: {response.text}"
     assert isinstance(response.json(), list)
 
 def test_predict_with_timestamps_endpoint():
@@ -20,7 +20,7 @@ def test_predict_with_timestamps_endpoint():
         ]
     }
     response = requests.post(f"{BASE_URL}/predict_with_timestamps", json=data)
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Request failed with status {response.status_code}: {response.text}"
     assert all('sentiment' in item for item in response.json())
 
 def test_generate_chart_endpoint():

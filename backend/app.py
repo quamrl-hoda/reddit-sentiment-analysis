@@ -59,7 +59,7 @@ except Exception as e:
     # sys.exit(1)
 
 # Get DAGSHUB_TOKEN from environment variable
-DAGSHUB_TOKEN = os.getenv('DAGSHUB_TOKEN')
+DAGSHUB_TOKEN = os.getenv('DAGSHUB_TOKEN', '').strip()
 if not DAGSHUB_TOKEN:
     print("WARNING: DAGSHUB_TOKEN not found in environment variables")
 
@@ -147,6 +147,8 @@ def home():
     })
 @app.route('/predict_with_timestamps', methods=['POST'])
 def predict_with_timestamps():
+    if model is None or vectorizer is None:
+        return jsonify({"error": "Model or vectorizer not loaded"}), 503
     data = request.json
     comments_data = data.get('comments')
     
@@ -186,6 +188,8 @@ def predict_with_timestamps():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    if model is None or vectorizer is None:
+        return jsonify({"error": "Model or vectorizer not loaded"}), 503
     data = request.json
     comments = data.get('comments')
     
