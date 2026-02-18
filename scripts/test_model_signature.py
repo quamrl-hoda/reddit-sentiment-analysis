@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from mlflow.tracking import MlflowClient
 import pytest
 import pandas as pd
-import pickle
+import joblib
 
 load_dotenv()
  # Set MLflow environment variables
@@ -36,8 +36,7 @@ def test_model_with_vectorizer(model_name, stage, vectorizer_path):
         model = mlflow.pyfunc.load_model(model_uri)
 
         # Load the vectorizer
-        with open(vectorizer_path, 'rb') as file:
-            vectorizer = pickle.load(file)
+        vectorizer = joblib.load(vectorizer_path)
 
         # Create a dummy input for the model
         input_text = "hi how are you"

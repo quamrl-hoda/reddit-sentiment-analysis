@@ -37,8 +37,7 @@ def test_model_performance(model_name, stage, holdout_data_path, vectorizer_path
         model = mlflow.pyfunc.load_model(model_uri)
 
         # Load the vectorizer
-        with open(vectorizer_path, 'rb') as file:
-            vectorizer = pickle.load(file)
+        vectorizer = joblib.load(vectorizer_path)
 
         # Load the holdout test data
         holdout_data = pd.read_csv(holdout_data_path)
