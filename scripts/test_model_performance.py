@@ -22,7 +22,7 @@ tracking_uri = f"https://dagshub.com/{DAGSHUB_USERNAME}/{REPO_NAME}.mlflow"
 mlflow.set_tracking_uri(tracking_uri)
 
 @pytest.mark.parametrize("model_name, stage, holdout_data_path, vectorizer_path", [
-    ("reddit_sentiment_lgbm", "staging", "interim/test_processed.csv", "models/tfidf_vectorizer.pkl"),  # Replace with your actual paths
+    ("reddit_sentiment_lgbm", "staging", "models/interim/test_processed.csv", "artifacts/models/tfidf_vectorizer.pkl"),  # Replace with your actual paths
 ])
 def test_model_performance(model_name, stage, holdout_data_path, vectorizer_path):
     try:
