@@ -9,9 +9,9 @@ import mlflow
 def setup_dagshub():
     load_dotenv()
 
-    DAGSHUB_USERNAME = os.getenv("DAGSHUB_USERNAME")
-    DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
-    REPO_NAME = os.getenv("REPO_NAME", "reddit-sentiment-analysis")
+    DAGSHUB_USERNAME = os.getenv("DAGSHUB_USERNAME", "").strip()
+    DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN", "").strip()
+    REPO_NAME = os.getenv("REPO_NAME", "reddit-sentiment-analysis").strip()
 
     if not DAGSHUB_USERNAME or not DAGSHUB_TOKEN:
         raise RuntimeError("❌ DagsHub credentials not found in environment variables")

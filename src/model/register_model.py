@@ -33,6 +33,8 @@ logger.addHandler(console_handler)
 logger.addHandler(file_handler)
 
 
+import pickle
+
 def load_model(model_path):
     """Load the trained model."""
     try:
@@ -40,7 +42,7 @@ def load_model(model_path):
             raise FileNotFoundError(f"Model not found at {model_path}")
         
         with open(model_path, 'rb') as f:
-            model = joblib.load(f)
+            model = pickle.load(f)
         logger.debug(f"✅ Model loaded from {model_path}")
         return model
     except Exception as e:
@@ -95,7 +97,7 @@ def register_model_in_mlflow():
     """Register the model in MLflow model registry."""
     try:
         # Initialize DAGsHub and MLflow
-        mlflow = setup_dagshub()
+        setup_dagshub()
         set_experiment('dvc-pipeline-runs')
         
         # Load experiment info to get the run ID
