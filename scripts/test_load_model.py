@@ -1,24 +1,40 @@
 import joblib
 import os
 import sys
+import mlflow
+from dotenv import load_dotenv
+from mlflow.tracking import MlflowClient
+import pytest
 
-def test_load_model():
-    # Define paths
-    model_path = os.path.join("artifacts", "models", "lgbm_model.pkl")
-    vectorizer_path = os.path.join("artifacts", "models", "tfidf_vectorizer.pkl")
 
-    # Check if files exist
-    assert os.path.exists(model_path), f"Model file not found at {model_path}"
-    assert os.path.exists(vectorizer_path), f"Vectorizer file not found at {vectorizer_path}"
+load_dotenv()
+ # Set MLflow environment variables
+os.environ["MLFLOW_TRACKING_USERNAME"] = DAGSHUB_USERNAME
+os.environ["MLFLOW_TRACKING_PASSWORD"] = DAGSHUB_TOKEN
 
-    # Try to load them
+tracking_uri = f"https://dagshub.com/{DAGSHUB_USERNAME}/{REPO_NAME}.mlflow"
+mlflow.set_tracking_uri(tracking_uri)
+
+@pytest.mark.parametrize("model_name, stage", [
+    ("yt_chrome_plugin_model", "staging"),])
+
+def test_load_latest_staging_model(model_name, stage):
+    client = MlflowClient()
+    
+    # Get the latest version in the specified stage
+    latest_version_info = client.get_latest_versions(model_name, stages=[stage])
+    latest_version = latest_version_info[0].version if latest_version_info else None
+    
+    assert latest_version is not None, f"No model found in the '{stage}' stage for '{model_name}'"
+
     try:
-        model = joblib.load(model_path)
-        vectorizer = joblib.load(vectorizer_path)
-        print("Model and vectorizer loaded successfully")
-    except Exception as e:
-        import pytest
-        pytest.fail(f"Failed to load model or vectorizer: {e}")
+        # Load the latest version of the model
+        model_uri = f"models:/{model_name}/{latest_version}"
+        model = mlflow.pyfunc.load_model(model_uri)
 
-if __name__ == "__main__":
-    test_load_model()
+        # Ensure the model loads successfully
+        assert model is not None, "Model failed to load"
+        print(f"Model '{model_name}' version {latest_version} loaded successfully from '{stage}' stage.")
+
+    except Exception as e:
+        pytest.fail(f"Model loading failed with error: {e}")

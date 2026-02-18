@@ -92,3 +92,14 @@ jobs:
         if: ${{ github.actor != 'github-actions[bot]' }}
         run: |
           git commit -m "Automated commit of DVC outputs and updated code" || echo "No changes to commit"
+      
+      - name: Install test dependencies
+        run: |
+          pip install pytest
+
+      - name: Run model loading test
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN : ${{ secrets.DAGSHUB_TOKEN  }}
+        run: |
+          pytest scripts/test_load_model.py
