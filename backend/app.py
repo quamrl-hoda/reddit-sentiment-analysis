@@ -114,6 +114,8 @@ def load_model_and_vectorizer(model_name, model_version, vectorizer_path):
         vectorizer_path = os.path.join(os.path.dirname(__file__), 'models', 'tfidf_vectorizer.pkl')
         if not os.path.exists(vectorizer_path):
             vectorizer_path = os.path.join('models', 'tfidf_vectorizer.pkl')
+        if not os.path.exists(vectorizer_path):
+            vectorizer_path = os.path.join('artifacts', 'models', 'tfidf_vectorizer.pkl')
         vectorizer = joblib.load(vectorizer_path)
         print(f"✅ Model and vectorizer loaded successfully from {vectorizer_path}")
         

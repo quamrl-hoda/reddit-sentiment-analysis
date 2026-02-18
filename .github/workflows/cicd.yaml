@@ -123,7 +123,8 @@ jobs:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          nohup python flask_app/app.py &
+          nohup python backend/app.py &
+          sleep 10
 
       - name: Run Flask API tests
         run: |
