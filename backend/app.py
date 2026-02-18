@@ -128,7 +128,7 @@ def load_model_and_vectorizer(model_name, model_version, vectorizer_path):
 try:
     model, vectorizer = load_model_and_vectorizer(
         "reddit_sentiment_lgbm", 
-        "3", 
+        "Staging", 
         "models/tfidf_vectorizer.pkl"  # Update path as needed
     )
 except Exception as e:
