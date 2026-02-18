@@ -8,9 +8,8 @@ import dagshub
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.dagshub_config import setup_dagshub, set_experiment
-# -------------------------------
+
 # 1. Authenticate with DagsHub
-# -------------------------------
 dagshub.auth.add_app_token(
     token=os.environ.get("DAGSHUB_TOKEN")
 )
