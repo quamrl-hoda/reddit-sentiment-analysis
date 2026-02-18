@@ -1,6 +1,4 @@
-import joblib
 import os
-import sys
 import mlflow
 from dotenv import load_dotenv
 from mlflow.tracking import MlflowClient
