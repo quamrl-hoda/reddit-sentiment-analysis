@@ -118,6 +118,17 @@ jobs:
         run: |
           pytest scripts/test_model_performance.py
 
+      - name: Start Flask application
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          nohup python flask_app/app.py &
+
+      - name: Run Flask API tests
+        run: |
+          pytest scripts/test_flask_api.py
+
       # - name: Promote model to production
       #   if: success()
       #   env:
